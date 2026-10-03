@@ -1,0 +1,243 @@
+// ========== ADD STUDENT FORM ==========
+document.getElementById('addForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const name = document.getElementById('addName').value;
+    const email = document.getElementById('addEmail').value;
+    const phone = document.getElementById('addPhone').value;
+    const address = document.getElementById('addAddress').value;
+    const enrollmentDate = document.getElementById('addEnrollmentDate').value;
+    const gpa = document.getElementById('addGPA').value;
+    
+    const msgEl = document.getElementById('addMessage');
+    
+    try {
+        const response = await fetch('/addStudent', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: `name=${name}&email=${email}&phone=${phone}&address=${address}&enrollmentDate=${enrollmentDate}&gpa=${gpa}`
+        });
+        
+        if (response.ok) {
+            msgEl.textContent = '✅ Student added successfully!';
+            msgEl.className = 'success';
+            this.reset();
+            loadAllStudents();
+            loadStatistics();
+        } else {
+            msgEl.textContent = '❌ Error adding student';
+            msgEl.className = 'error';
+        }
+    } catch (error) {
+        msgEl.textContent = '❌ Error: ' + error.message;
+        msgEl.className = 'error';
+    }
+    
+    setTimeout(() => msgEl.textContent = '', 3000);
+});
+
+// ========== SEARCH STUDENT FORM ==========
+document.getElementById('searchForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const keyword = document.getElementById('searchKeyword').value;
+    const msgEl = document.getElementById('searchMessage');
+    const resultsDiv = document.getElementById('searchResults');
+    
+    try {
+        const response = await fetch(`/searchStudents?keyword=${keyword}`);
+        const data = await response.json();
+        
+        if (data.length === 0) {
+            msgEl.textContent = '❌ No students found';
+            msgEl.className = 'error';
+            resultsDiv.innerHTML = '';
+        } else {
+            msgEl.textContent = `✅ Found ${data.length} student(s)`;
+            msgEl.className = 'success';
+            
+            let html = '<table style="width: 100%;"><tr><th>ID</th><th>Name</th><th>Email</th><th>GPA</th></tr>';
+            data.forEach(student => {
+                html += `<tr><td>${student.id}</td><td>${student.name}</td><td>${student.email}</td><td>${student.gpa}</td></tr>`;
+            });
+            html += '</table>';
+            resultsDiv.innerHTML = html;
+        }
+    } catch (error) {
+        msgEl.textContent = '❌ Error: ' + error.message;
+        msgEl.className = 'error';
+    }
+});
+
+// ========== UPDATE STUDENT FORM ==========
+async function loadStudentForUpdate() {
+    const id = document.getElementById('updateId').value;
+    
+    if (!id) {
+        alert('Please enter a student ID');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/getStudent?id=${id}`);
+        const student = await response.json();
+        
+        if (student && student.id) {
+            document.getElementById('updateName').value = student.name;
+            document.getElementById('updateEmail').value = student.email;
+            document.getElementById('updatePhone').value = student.phone;
+            document.getElementById('updateAddress').value = student.address;
+            document.getElementById('updateGPA').value = student.gpa;
+            
+            // Enable form fields
+            document.getElementById('updateName').disabled = false;
+            document.getElementById('updateEmail').disabled = false;
+            document.getElementById('updatePhone').disabled = false;
+            document.getElementById('updateAddress').disabled = false;
+            document.getElementById('updateGPA').disabled = false;
+            document.getElementById('updateSubmitBtn').disabled = false;
+        } else {
+            alert('Student not found');
+        }
+    } catch (error) {
+        alert('Error loading student: ' + error.message);
+    }
+}
+
+document.getElementById('updateForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const id = document.getElementById('updateId').value;
+    const name = document.getElementById('updateName').value;
+    const email = document.getElementById('updateEmail').value;
+    const phone = document.getElementById('updatePhone').value;
+    const address = document.getElementById('updateAddress').value;
+    const gpa = document.getElementById('updateGPA').value;
+    
+    const msgEl = document.getElementById('updateMessage');
+    
+    try {
+        const response = await fetch('/updateStudent', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: `id=${id}&name=${name}&email=${email}&phone=${phone}&address=${address}&gpa=${gpa}`
+        });
+        
+        if (response.ok) {
+            msgEl.textContent = '✅ Student updated successfully!';
+            msgEl.className = 'success';
+            loadAllStudents();
+            
+            // Disable form fields
+            document.getElementById('updateName').disabled = true;
+            document.getElementById('updateEmail').disabled = true;
+            document.getElementById('updatePhone').disabled = true;
+            document.getElementById('updateAddress').disabled = true;
+            document.getElementById('updateGPA').disabled = true;
+            document.getElementById('updateSubmitBtn').disabled = true;
+        } else {
+            msgEl.textContent = '❌ Error updating student';
+            msgEl.className = 'error';
+        }
+    } catch (error) {
+        msgEl.textContent = '❌ Error: ' + error.message;
+        msgEl.className = 'error';
+    }
+    
+    setTimeout(() => msgEl.textContent = '', 3000);
+});
+
+// ========== LOAD ALL STUDENTS ==========
+async function loadAllStudents() {
+    try {
+        const response = await fetch('/getAllStudents');
+        const data = await response.json();
+        const tbody = document.getElementById('studentsBody');
+        
+        tbody.innerHTML = data.map(student => `
+            <tr>
+                <td>${student.id}</td>
+                <td>${student.name}</td>
+                <td>${student.email}</td>
+                <td>${student.phone}</td>
+                <td>${student.address}</td>
+                <td>${student.enrollment_date}</td>
+                <td>${student.gpa}</td>
+                <td>
+                    <button class="action-btn update-btn" onclick="editStudent(${student.id})">Edit</button>
+                    <button class="action-btn delete-btn" onclick="deleteStudent(${student.id})">Delete</button>
+                </td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading students:', error);
+    }
+}
+
+// ========== DELETE STUDENT ==========
+async function deleteStudent(id) {
+    if (confirm('Are you sure you want to delete this student?')) {
+        try {
+            const response = await fetch(`/deleteStudent?id=${id}`, {method: 'POST'});
+            if (response.ok) {
+                loadAllStudents();
+                loadStatistics();
+            }
+        } catch (error) {
+            console.error('Error deleting student:', error);
+        }
+    }
+}
+
+// ========== EDIT STUDENT ==========
+function editStudent(id) {
+    document.getElementById('updateId').value = id;
+    loadStudentForUpdate();
+    switchTab('update-form');
+    document.getElementById('updateId').disabled = true;
+}
+
+// ========== CLEAR ALL STUDENTS ==========
+function clearAllStudents() {
+    if (confirm('⚠️ This will DELETE ALL students! Are you absolutely sure?')) {
+        if (confirm('⚠️ This action CANNOT be undone! Proceed?')) {
+            fetch('/deleteAllStudents', {method: 'POST'})
+                .then(response => {
+                    if (response.ok) {
+                        loadAllStudents();
+                        loadStatistics();
+                        alert('✅ All students deleted!');
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        }
+    }
+}
+
+// ========== LOAD STATISTICS ==========
+async function loadStatistics() {
+    try {
+        const response = await fetch('/getStatistics');
+        const stats = await response.json();
+        
+        document.getElementById('totalStudents').textContent = stats.totalStudents;
+        document.getElementById('averageGPA').textContent = stats.averageGPA.toFixed(2);
+        document.getElementById('highestGPA').textContent = stats.highestGPA.toFixed(2);
+    } catch (error) {
+        console.error('Error loading statistics:', error);
+    }
+}
+
+// ========== SWITCH TAB ==========
+function switchTab(tabName) {
+    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+    document.getElementById(tabName).classList.add('active');
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+}
+
+// ========== INITIALIZE ON PAGE LOAD ==========
+window.addEventListener('load', function() {
+    loadAllStudents();
+    loadStatistics();
+});

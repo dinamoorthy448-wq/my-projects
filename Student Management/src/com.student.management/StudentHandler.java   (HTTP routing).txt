@@ -1,0 +1,357 @@
+package com.student.management;
+
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.sql.SQLException;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * StudentHandler - HTTP Request Handler for Student Management System
+ * Handles all incoming HTTP requests and routes them to appropriate methods
+ */
+public class StudentHandler implements HttpHandler {
+    
+    private StudentDAO dao = new StudentDAO();
+    
+    @Override
+    public void handle(HttpExchange exchange) throws IOException {
+        String path = exchange.getRequestURI().getPath();
+        String method = exchange.getRequestMethod();
+        
+        try {
+            // Serve static files
+            if (path.equals("/") || path.equals("/index.html")) {
+                serveFile(exchange, "web/index.html", "text/html");
+                return;
+            }
+            if (path.equals("/style.css")) {
+                serveFile(exchange, "web/style.css", "text/css");
+                return;
+            }
+            if (path.equals("/script.js")) {
+                serveFile(exchange, "web/script.js", "application/javascript");
+                return;
+            }
+            
+            // API Endpoints
+            if (method.equals("POST")) {
+                if (path.equals("/addStudent")) {
+                    addStudent(exchange);
+                } else if (path.equals("/updateStudent")) {
+                    updateStudent(exchange);
+                } else if (path.equals("/deleteAllStudents")) {
+                    deleteAllStudents(exchange);
+                }
+            } else if (method.equals("GET")) {
+                if (path.equals("/getAllStudents")) {
+                    getAllStudents(exchange);
+                } else if (path.equals("/getStudent")) {
+                    getStudent(exchange);
+                } else if (path.startsWith("/searchStudents")) {
+                    searchStudents(exchange);
+                } else if (path.equals("/deleteStudent")) {
+                    deleteStudent(exchange);
+                } else if (path.equals("/getStatistics")) {
+                    getStatistics(exchange);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Error handling request: " + e.getMessage());
+            sendError(exchange, 500, "Internal Server Error");
+        }
+    }
+    
+    // ========== STATIC FILE SERVING ==========
+    
+    private void serveFile(HttpExchange exchange, String filePath, String contentType) throws IOException {
+        try {
+            byte[] fileBytes = Files.readAllBytes(Paths.get(filePath));
+            exchange.getResponseHeaders().set("Content-Type", contentType);
+            exchange.sendResponseHeaders(200, fileBytes.length);
+            OutputStream os = exchange.getResponseBody();
+            os.write(fileBytes);
+            os.close();
+        } catch (IOException e) {
+            sendError(exchange, 404, "File Not Found");
+        }
+    }
+    
+    // ========== CREATE OPERATIONS ==========
+    
+    /**
+     * POST /addStudent
+     * Add new student to database
+     */
+    private void addStudent(HttpExchange exchange) throws IOException {
+        try {
+            String body = readRequestBody(exchange);
+            Map<String, String> params = parseFormData(body);
+            
+            String name = params.get("name");
+            String email = params.get("email");
+            String phone = params.get("phone");
+            String address = params.get("address");
+            String enrollmentDate = params.get("enrollmentDate");
+            double gpa = Double.parseDouble(params.get("gpa"));
+            
+            boolean success = dao.addStudent(name, email, phone, address, enrollmentDate, gpa);
+            
+            if (success) {
+                sendJson(exchange, 200, "{\"status\":\"success\",\"message\":\"Student added\"}");
+            } else {
+                sendJson(exchange, 400, "{\"status\":\"error\",\"message\":\"Failed to add student\"}");
+            }
+        } catch (Exception e) {
+            sendError(exchange, 500, e.getMessage());
+        }
+    }
+    
+    // ========== READ OPERATIONS ==========
+    
+    /**
+     * GET /getAllStudents
+     * Retrieve all students as JSON
+     */
+    private void getAllStudents(HttpExchange exchange) throws IOException {
+        try {
+            List<Map<String, Object>> students = dao.getAllStudents();
+            StringBuilder json = new StringBuilder("[");
+            
+            for (int i = 0; i < students.size(); i++) {
+                if (i > 0) json.append(",");
+                Map<String, Object> student = students.get(i);
+                json.append("{")
+                    .append("\"id\":").append(student.get("id")).append(",")
+                    .append("\"name\":\"").append(student.get("name")).append("\",")
+                    .append("\"email\":\"").append(student.get("email")).append("\",")
+                    .append("\"phone\":\"").append(student.get("phone")).append("\",")
+                    .append("\"address\":\"").append(student.get("address")).append("\",")
+                    .append("\"enrollment_date\":\"").append(student.get("enrollment_date")).append("\",")
+                    .append("\"gpa\":").append(student.get("gpa"))
+                    .append("}");
+            }
+            json.append("]");
+            
+            sendJson(exchange, 200, json.toString());
+        } catch (SQLException e) {
+            sendError(exchange, 500, e.getMessage());
+        }
+    }
+    
+    /**
+     * GET /getStudent?id=1
+     * Get single student by ID
+     */
+    private void getStudent(HttpExchange exchange) throws IOException {
+        try {
+            String query = exchange.getRequestURI().getQuery();
+            int id = Integer.parseInt(query.split("=")[1]);
+            
+            Map<String, Object> student = dao.getStudent(id);
+            
+            if (student != null) {
+                String json = "{" +
+                    "\"id\":" + student.get("id") + "," +
+                    "\"name\":\"" + student.get("name") + "\"," +
+                    "\"email\":\"" + student.get("email") + "\"," +
+                    "\"phone\":\"" + student.get("phone") + "\"," +
+                    "\"address\":\"" + student.get("address") + "\"," +
+                    "\"gpa\":" + student.get("gpa") +
+                    "}";
+                sendJson(exchange, 200, json);
+            } else {
+                sendJson(exchange, 404, "{\"error\":\"Student not found\"}");
+            }
+        } catch (SQLException e) {
+            sendError(exchange, 500, e.getMessage());
+        }
+    }
+    
+    /**
+     * GET /searchStudents?keyword=name
+     * Search students by name or email
+     */
+    private void searchStudents(HttpExchange exchange) throws IOException {
+        try {
+            String query = exchange.getRequestURI().getQuery();
+            String keyword = query.split("=")[1];
+            keyword = java.net.URLDecoder.decode(keyword, "UTF-8");
+            
+            List<Map<String, Object>> students = dao.searchStudents(keyword);
+            StringBuilder json = new StringBuilder("[");
+            
+            for (int i = 0; i < students.size(); i++) {
+                if (i > 0) json.append(",");
+                Map<String, Object> student = students.get(i);
+                json.append("{")
+                    .append("\"id\":").append(student.get("id")).append(",")
+                    .append("\"name\":\"").append(student.get("name")).append("\",")
+                    .append("\"email\":\"").append(student.get("email")).append("\",")
+                    .append("\"gpa\":").append(student.get("gpa"))
+                    .append("}");
+            }
+            json.append("]");
+            
+            sendJson(exchange, 200, json.toString());
+        } catch (SQLException e) {
+            sendError(exchange, 500, e.getMessage());
+        }
+    }
+    
+    /**
+     * GET /getStatistics
+     * Get database statistics
+     */
+    private void getStatistics(HttpExchange exchange) throws IOException {
+        try {
+            int totalStudents = dao.getTotalStudents();
+            double averageGPA = dao.getAverageGPA();
+            
+            // Calculate highest GPA
+            List<Map<String, Object>> students = dao.getAllStudents();
+            double highestGPA = 0;
+            for (Map<String, Object> student : students) {
+                double gpa = (Double) student.get("gpa");
+                if (gpa > highestGPA) highestGPA = gpa;
+            }
+            
+            String json = "{" +
+                "\"totalStudents\":" + totalStudents + "," +
+                "\"averageGPA\":" + averageGPA + "," +
+                "\"highestGPA\":" + highestGPA +
+                "}";
+            
+            sendJson(exchange, 200, json);
+        } catch (SQLException e) {
+            sendError(exchange, 500, e.getMessage());
+        }
+    }
+    
+    // ========== UPDATE OPERATIONS ==========
+    
+    /**
+     * POST /updateStudent
+     * Update student information
+     */
+    private void updateStudent(HttpExchange exchange) throws IOException {
+        try {
+            String body = readRequestBody(exchange);
+            Map<String, String> params = parseFormData(body);
+            
+            int id = Integer.parseInt(params.get("id"));
+            String name = params.get("name");
+            String email = params.get("email");
+            String phone = params.get("phone");
+            String address = params.get("address");
+            double gpa = Double.parseDouble(params.get("gpa"));
+            
+            boolean success = dao.updateStudent(id, name, email, phone, address, gpa);
+            
+            if (success) {
+                sendJson(exchange, 200, "{\"status\":\"success\",\"message\":\"Student updated\"}");
+            } else {
+                sendJson(exchange, 400, "{\"status\":\"error\",\"message\":\"Failed to update student\"}");
+            }
+        } catch (Exception e) {
+            sendError(exchange, 500, e.getMessage());
+        }
+    }
+    
+    // ========== DELETE OPERATIONS ==========
+    
+    /**
+     * POST /deleteStudent?id=1
+     * Delete student by ID
+     */
+    private void deleteStudent(HttpExchange exchange) throws IOException {
+        try {
+            String query = exchange.getRequestURI().getQuery();
+            int id = Integer.parseInt(query.split("=")[1]);
+            
+            boolean success = dao.deleteStudent(id);
+            
+            if (success) {
+                sendJson(exchange, 200, "{\"status\":\"success\",\"message\":\"Student deleted\"}");
+            } else {
+                sendJson(exchange, 400, "{\"status\":\"error\",\"message\":\"Failed to delete student\"}");
+            }
+        } catch (SQLException e) {
+            sendError(exchange, 500, e.getMessage());
+        }
+    }
+    
+    /**
+     * POST /deleteAllStudents
+     * Delete all students (dangerous operation!)
+     */
+    private void deleteAllStudents(HttpExchange exchange) throws IOException {
+        try {
+            boolean success = dao.deleteAllStudents();
+            
+            if (success) {
+                sendJson(exchange, 200, "{\"status\":\"success\",\"message\":\"All students deleted\"}");
+            } else {
+                sendJson(exchange, 400, "{\"status\":\"error\",\"message\":\"Failed to delete all students\"}");
+            }
+        } catch (SQLException e) {
+            sendError(exchange, 500, e.getMessage());
+        }
+    }
+    
+    // ========== HELPER METHODS ==========
+    
+    /**
+     * Read request body from HTTP request
+     */
+    private String readRequestBody(HttpExchange exchange) throws IOException {
+        InputStream is = exchange.getRequestBody();
+        StringBuilder body = new StringBuilder();
+        byte[] buffer = new byte[1024];
+        int bytesRead;
+        
+        while ((bytesRead = is.read(buffer)) != -1) {
+            body.append(new String(buffer, 0, bytesRead));
+        }
+        
+        return body.toString();
+    }
+    
+    /**
+     * Parse form data (application/x-www-form-urlencoded)
+     */
+    private Map<String, String> parseFormData(String body) throws IOException {
+        Map<String, String> params = new java.util.HashMap<>();
+        
+        for (String param : body.split("&")) {
+            String[] parts = param.split("=");
+            if (parts.length == 2) {
+                params.put(parts[0], java.net.URLDecoder.decode(parts[1], "UTF-8"));
+            }
+        }
+        
+        return params;
+    }
+    
+    /**
+     * Send JSON response
+     */
+    private void sendJson(HttpExchange exchange, int statusCode, String json) throws IOException {
+        exchange.getResponseHeaders().set("Content-Type", "application/json");
+        byte[] bytes = json.getBytes();
+        exchange.sendResponseHeaders(statusCode, bytes.length);
+        exchange.getResponseBody().write(bytes);
+        exchange.getResponseBody().close();
+    }
+    
+    /**
+     * Send error response
+     */
+    private void sendError(HttpExchange exchange, int statusCode, String message) throws IOException {
+        String json = "{\"error\":\"" + message + "\"}";
+        sendJson(exchange, statusCode, json);
+    }
+}

@@ -1,0 +1,335 @@
+package com.student.management;
+
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * StudentDAO - Data Access Object for Student Management System
+ * Implements complete CRUD operations using JDBC
+ * 
+ * CRUD Operations:
+ * - CREATE (INSERT): addStudent()
+ * - READ (SELECT): getStudent(), getAllStudents(), searchStudents()
+ * - UPDATE (UPDATE): updateStudent()
+ * - DELETE (DELETE): deleteStudent()
+ */
+public class StudentDAO {
+    
+    // Database Connection Details
+    private static final String URL = "jdbc:mysql://localhost:3306/student_management";
+    private static final String USER = "root";
+    private static final String PASSWORD = "root";
+    
+    // ==================== CREATE OPERATIONS ====================
+    
+    /**
+     * Add new student to database
+     * JDBC: INSERT statement with PreparedStatement
+     */
+    public boolean addStudent(String name, String email, String phone, 
+                             String address, String enrollmentDate, double gpa) 
+            throws SQLException {
+        String sql = "INSERT INTO students(name, email, phone, address, enrollment_date, gpa) " +
+                    "VALUES(?, ?, ?, ?, ?, ?)";
+        
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setString(1, name);
+            pstmt.setString(2, email);
+            pstmt.setString(3, phone);
+            pstmt.setString(4, address);
+            pstmt.setString(5, enrollmentDate);
+            pstmt.setDouble(6, gpa);
+            
+            int rowsAffected = pstmt.executeUpdate();
+            System.out.println("✅ Student added successfully! Rows affected: " + rowsAffected);
+            return rowsAffected > 0;
+        } catch (SQLException e) {
+            System.err.println("❌ Error adding student: " + e.getMessage());
+            throw e;
+        }
+    }
+    
+    // ==================== READ OPERATIONS ====================
+    
+    /**
+     * Get student by ID
+     * JDBC: SELECT with WHERE clause
+     */
+    public Map<String, Object> getStudent(int id) throws SQLException {
+        String sql = "SELECT * FROM students WHERE id = ?";
+        
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setInt(1, id);
+            ResultSet rs = pstmt.executeQuery();
+            
+            if (rs.next()) {
+                Map<String, Object> student = new HashMap<>();
+                student.put("id", rs.getInt("id"));
+                student.put("name", rs.getString("name"));
+                student.put("email", rs.getString("email"));
+                student.put("phone", rs.getString("phone"));
+                student.put("address", rs.getString("address"));
+                student.put("enrollment_date", rs.getDate("enrollment_date"));
+                student.put("gpa", rs.getDouble("gpa"));
+                return student;
+            }
+        } catch (SQLException e) {
+            System.err.println("❌ Error fetching student: " + e.getMessage());
+            throw e;
+        }
+        return null;
+    }
+    
+    /**
+     * Get all students from database
+     * JDBC: SELECT all records with ORDER BY
+     */
+    public List<Map<String, Object>> getAllStudents() throws SQLException {
+        List<Map<String, Object>> students = new ArrayList<>();
+        String sql = "SELECT * FROM students ORDER BY id DESC";
+        
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD);
+             PreparedStatement pstmt = conn.prepareStatement(sql);
+             ResultSet rs = pstmt.executeQuery()) {
+            
+            while (rs.next()) {
+                Map<String, Object> student = new HashMap<>();
+                student.put("id", rs.getInt("id"));
+                student.put("name", rs.getString("name"));
+                student.put("email", rs.getString("email"));
+                student.put("phone", rs.getString("phone"));
+                student.put("address", rs.getString("address"));
+                student.put("enrollment_date", rs.getDate("enrollment_date").toString());
+                student.put("gpa", rs.getDouble("gpa"));
+                student.put("created_at", rs.getTimestamp("created_at").toString());
+                students.add(student);
+            }
+        } catch (SQLException e) {
+            System.err.println("❌ Error fetching students: " + e.getMessage());
+            throw e;
+        }
+        return students;
+    }
+    
+    /**
+     * Search students by name or email
+     * JDBC: SELECT with LIKE clause
+     */
+    public List<Map<String, Object>> searchStudents(String keyword) throws SQLException {
+        List<Map<String, Object>> students = new ArrayList<>();
+        String sql = "SELECT * FROM students WHERE name LIKE ? OR email LIKE ? ORDER BY id DESC";
+        
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            String searchKeyword = "%" + keyword + "%";
+            pstmt.setString(1, searchKeyword);
+            pstmt.setString(2, searchKeyword);
+            
+            ResultSet rs = pstmt.executeQuery();
+            
+            while (rs.next()) {
+                Map<String, Object> student = new HashMap<>();
+                student.put("id", rs.getInt("id"));
+                student.put("name", rs.getString("name"));
+                student.put("email", rs.getString("email"));
+                student.put("phone", rs.getString("phone"));
+                student.put("address", rs.getString("address"));
+                student.put("gpa", rs.getDouble("gpa"));
+                students.add(student);
+            }
+        } catch (SQLException e) {
+            System.err.println("❌ Error searching students: " + e.getMessage());
+            throw e;
+        }
+        return students;
+    }
+    
+    /**
+     * Get total number of students
+     * JDBC: SELECT COUNT(*)
+     */
+    public int getTotalStudents() throws SQLException {
+        String sql = "SELECT COUNT(*) as total FROM students";
+        
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD);
+             PreparedStatement pstmt = conn.prepareStatement(sql);
+             ResultSet rs = pstmt.executeQuery()) {
+            
+            if (rs.next()) {
+                return rs.getInt("total");
+            }
+        } catch (SQLException e) {
+            System.err.println("❌ Error counting students: " + e.getMessage());
+            throw e;
+        }
+        return 0;
+    }
+    
+    /**
+     * Get average GPA of all students
+     * JDBC: SELECT AVG()
+     */
+    public double getAverageGPA() throws SQLException {
+        String sql = "SELECT AVG(gpa) as avg_gpa FROM students";
+        
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD);
+             PreparedStatement pstmt = conn.prepareStatement(sql);
+             ResultSet rs = pstmt.executeQuery()) {
+            
+            if (rs.next()) {
+                return rs.getDouble("avg_gpa");
+            }
+        } catch (SQLException e) {
+            System.err.println("❌ Error calculating average GPA: " + e.getMessage());
+            throw e;
+        }
+        return 0.0;
+    }
+    
+    /**
+     * Convert student list to JSON format for REST API
+     */
+    public String getStudentsAsJson() throws SQLException {
+        StringBuilder json = new StringBuilder("[");
+        List<Map<String, Object>> students = getAllStudents();
+        
+        for (int i = 0; i < students.size(); i++) {
+            if (i > 0) json.append(",");
+            Map<String, Object> student = students.get(i);
+            json.append("{")
+                .append("\"id\":").append(student.get("id")).append(",")
+                .append("\"name\":\"").append(student.get("name")).append("\",")
+                .append("\"email\":\"").append(student.get("email")).append("\",")
+                .append("\"phone\":\"").append(student.get("phone")).append("\",")
+                .append("\"address\":\"").append(student.get("address")).append("\",")
+                .append("\"enrollment_date\":\"").append(student.get("enrollment_date")).append("\",")
+                .append("\"gpa\":").append(student.get("gpa"))
+                .append("}");
+        }
+        json.append("]");
+        return json.toString();
+    }
+    
+    // ==================== UPDATE OPERATIONS ====================
+    
+    /**
+     * Update student information
+     * JDBC: UPDATE statement with WHERE clause
+     */
+    public boolean updateStudent(int id, String name, String email, String phone, 
+                                String address, double gpa) throws SQLException {
+        String sql = "UPDATE students SET name=?, email=?, phone=?, address=?, gpa=? WHERE id=?";
+        
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setString(1, name);
+            pstmt.setString(2, email);
+            pstmt.setString(3, phone);
+            pstmt.setString(4, address);
+            pstmt.setDouble(5, gpa);
+            pstmt.setInt(6, id);
+            
+            int rowsAffected = pstmt.executeUpdate();
+            System.out.println("✅ Student updated successfully! Rows affected: " + rowsAffected);
+            return rowsAffected > 0;
+        } catch (SQLException e) {
+            System.err.println("❌ Error updating student: " + e.getMessage());
+            throw e;
+        }
+    }
+    
+    /**
+     * Update only GPA
+     */
+    public boolean updateGPA(int id, double gpa) throws SQLException {
+        String sql = "UPDATE students SET gpa=? WHERE id=?";
+        
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setDouble(1, gpa);
+            pstmt.setInt(2, id);
+            
+            int rowsAffected = pstmt.executeUpdate();
+            return rowsAffected > 0;
+        } catch (SQLException e) {
+            System.err.println("❌ Error updating GPA: " + e.getMessage());
+            throw e;
+        }
+    }
+    
+    // ==================== DELETE OPERATIONS ====================
+    
+    /**
+     * Delete student by ID
+     * JDBC: DELETE with WHERE clause
+     */
+    public boolean deleteStudent(int id) throws SQLException {
+        String sql = "DELETE FROM students WHERE id=?";
+        
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setInt(1, id);
+            
+            int rowsAffected = pstmt.executeUpdate();
+            System.out.println("✅ Student deleted successfully! Rows affected: " + rowsAffected);
+            return rowsAffected > 0;
+        } catch (SQLException e) {
+            System.err.println("❌ Error deleting student: " + e.getMessage());
+            throw e;
+        }
+    }
+    
+    /**
+     * Delete all students (use with caution!)
+     */
+    public boolean deleteAllStudents() throws SQLException {
+        String sql = "DELETE FROM students";
+        
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            int rowsAffected = pstmt.executeUpdate();
+            System.out.println("⚠️ All students deleted! Rows affected: " + rowsAffected);
+            return rowsAffected > 0;
+        } catch (SQLException e) {
+            System.err.println("❌ Error deleting all students: " + e.getMessage());
+            throw e;
+        }
+    }
+    
+    // ==================== HELPER METHODS ====================
+    
+    /**
+     * Test database connection
+     */
+    public boolean testConnection() {
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+            System.out.println("✅ Database connection successful!");
+            return true;
+        } catch (SQLException e) {
+            System.err.println("❌ Database connection failed: " + e.getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Get connection statistics
+     */
+    public void printDatabaseStats() throws SQLException {
+        System.out.println("\n========== DATABASE STATISTICS ==========");
+        System.out.println("Total Students: " + getTotalStudents());
+        System.out.println("Average GPA: " + String.format("%.2f", getAverageGPA()));
+        System.out.println("=========================================\n");
+    }
+}

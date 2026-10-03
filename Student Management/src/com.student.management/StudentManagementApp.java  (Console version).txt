@@ -1,0 +1,292 @@
+package com.student.management;
+
+import java.sql.SQLException;
+import java.util.List;
+import java.util.Map;
+import java.util.Scanner;
+
+/**
+ * Student Management System - Console Application
+ * Demonstrates complete CRUD operations with JDBC
+ * 
+ * Features:
+ * - Add new students
+ * - View all students
+ * - Search students
+ * - Update student information1
+ * - Delete students
+ * - View statistics
+ */
+public class StudentManagementApp {
+    
+    private static StudentDAO dao = new StudentDAO();
+    private static Scanner scanner = new Scanner(System.in);
+    
+    public static void main(String[] args) {
+        // Test database connection
+        if (!dao.testConnection()) {
+            System.out.println("Cannot connect to database. Exiting...");
+            System.exit(1);
+        }
+        
+        boolean running = true;
+        
+        while (running) {
+            displayMenu();
+            System.out.print("Enter your choice (1-7): ");
+            int choice = scanner.nextInt();
+            scanner.nextLine(); // Consume newline
+            
+            try {
+                switch (choice) {
+                    case 1:
+                        addNewStudent();
+                        break;
+                    case 2:
+                        viewAllStudents();
+                        break;
+                    case 3:
+                        searchStudents();
+                        break;
+                    case 4:
+                        updateStudentInfo();
+                        break;
+                    case 5:
+                        deleteStudent();
+                        break;
+                    case 6:
+                        viewStatistics();
+                        break;
+                    case 7:
+                        running = false;
+                        System.out.println("\n✅ Thank you for using Student Management System!");
+                        break;
+                    default:
+                        System.out.println("❌ Invalid choice! Please try again.");
+                }
+            } catch (SQLException e) {
+                System.err.println("❌ Database error: " + e.getMessage());
+            }
+            
+            if (running && choice >= 1 && choice <= 6) {
+                System.out.print("\nPress Enter to continue...");
+                scanner.nextLine();
+                System.out.println("\n");
+            }
+        }
+        
+        scanner.close();
+    }
+    
+    /**
+     * Display main menu
+     */
+    private static void displayMenu() {
+        System.out.println("╔════════════════════════════════════════╗");
+        System.out.println("║   STUDENT MANAGEMENT SYSTEM - MENU     ║");
+        System.out.println("╠════════════════════════════════════════╣");
+        System.out.println("║ 1. Add New Student                     ║");
+        System.out.println("║ 2. View All Students                   ║");
+        System.out.println("║ 3. Search Student                      ║");
+        System.out.println("║ 4. Update Student Information          ║");
+        System.out.println("║ 5. Delete Student                      ║");
+        System.out.println("║ 6. View Statistics                     ║");
+        System.out.println("║ 7. Exit                                ║");
+        System.out.println("╚════════════════════════════════════════╝");
+    }
+    
+    /**
+     * CREATE: Add new student
+     */
+    private static void addNewStudent() throws SQLException {
+        System.out.println("\n========== ADD NEW STUDENT ==========");
+        
+        System.out.print("Enter Name: ");
+        String name = scanner.nextLine();
+        
+        System.out.print("Enter Email: ");
+        String email = scanner.nextLine();
+        
+        System.out.print("Enter Phone: ");
+        String phone = scanner.nextLine();
+        
+        System.out.print("Enter Address: ");
+        String address = scanner.nextLine();
+        
+        System.out.print("Enter Enrollment Date (YYYY-MM-DD): ");
+        String enrollmentDate = scanner.nextLine();
+        
+        System.out.print("Enter GPA (0.0 - 4.0): ");
+        double gpa = scanner.nextDouble();
+        scanner.nextLine();
+        
+        boolean success = dao.addStudent(name, email, phone, address, enrollmentDate, gpa);
+        
+        if (success) {
+            System.out.println("\n✅ Student added successfully!");
+        } else {
+            System.out.println("\n❌ Failed to add student.");
+        }
+    }
+    
+    /**
+     * READ: View all students
+     */
+    private static void viewAllStudents() throws SQLException {
+        System.out.println("\n========== ALL STUDENTS ==========");
+        
+        List<Map<String, Object>> students = dao.getAllStudents();
+        
+        if (students.isEmpty()) {
+            System.out.println("No students found.");
+            return;
+        }
+        
+        System.out.println(String.format("%-5s %-20s %-25s %-12s %-20s %-6s", 
+            "ID", "Name", "Email", "Phone", "Address", "GPA"));
+        System.out.println("─".repeat(95));
+        
+        for (Map<String, Object> student : students) {
+            System.out.println(String.format("%-5s %-20s %-25s %-12s %-20s %-6s",
+                student.get("id"),
+                student.get("name"),
+                student.get("email"),
+                student.get("phone"),
+                student.get("address"),
+                student.get("gpa")
+            ));
+        }
+        
+        System.out.println("─".repeat(95));
+        System.out.println("Total: " + students.size() + " student(s)");
+    }
+    
+    /**
+     * READ: Search students
+     */
+    private static void searchStudents() throws SQLException {
+        System.out.println("\n========== SEARCH STUDENT ==========");
+        
+        System.out.print("Enter name or email to search: ");
+        String keyword = scanner.nextLine();
+        
+        List<Map<String, Object>> students = dao.searchStudents(keyword);
+        
+        if (students.isEmpty()) {
+            System.out.println("No students found matching: " + keyword);
+            return;
+        }
+        
+        System.out.println("\nSearch Results:");
+        System.out.println(String.format("%-5s %-20s %-25s %-12s %-6s", 
+            "ID", "Name", "Email", "Phone", "GPA"));
+        System.out.println("─".repeat(70));
+        
+        for (Map<String, Object> student : students) {
+            System.out.println(String.format("%-5s %-20s %-25s %-12s %-6s",
+                student.get("id"),
+                student.get("name"),
+                student.get("email"),
+                student.get("phone"),
+                student.get("gpa")
+            ));
+        }
+    }
+    
+    /**
+     * UPDATE: Update student information
+     */
+    private static void updateStudentInfo() throws SQLException {
+        System.out.println("\n========== UPDATE STUDENT ==========");
+        
+        System.out.print("Enter Student ID to update: ");
+        int id = scanner.nextInt();
+        scanner.nextLine();
+        
+        Map<String, Object> student = dao.getStudent(id);
+        
+        if (student == null) {
+            System.out.println("❌ Student not found!");
+            return;
+        }
+        
+        System.out.println("\nCurrent Information:");
+        System.out.println("Name: " + student.get("name"));
+        System.out.println("Email: " + student.get("email"));
+        System.out.println("Phone: " + student.get("phone"));
+        System.out.println("Address: " + student.get("address"));
+        System.out.println("GPA: " + student.get("gpa"));
+        
+        System.out.print("\nEnter new Name (or press Enter to skip): ");
+        String name = scanner.nextLine();
+        if (name.isEmpty()) name = (String) student.get("name");
+        
+        System.out.print("Enter new Email (or press Enter to skip): ");
+        String email = scanner.nextLine();
+        if (email.isEmpty()) email = (String) student.get("email");
+        
+        System.out.print("Enter new Phone (or press Enter to skip): ");
+        String phone = scanner.nextLine();
+        if (phone.isEmpty()) phone = (String) student.get("phone");
+        
+        System.out.print("Enter new Address (or press Enter to skip): ");
+        String address = scanner.nextLine();
+        if (address.isEmpty()) address = (String) student.get("address");
+        
+        System.out.print("Enter new GPA (or press Enter to skip): ");
+        String gpaInput = scanner.nextLine();
+        double gpa = gpaInput.isEmpty() ? (Double) student.get("gpa") : Double.parseDouble(gpaInput);
+        
+        boolean success = dao.updateStudent(id, name, email, phone, address, gpa);
+        
+        if (success) {
+            System.out.println("\n✅ Student updated successfully!");
+        } else {
+            System.out.println("\n❌ Failed to update student.");
+        }
+    }
+    
+    /**
+     * DELETE: Delete student
+     */
+    private static void deleteStudent() throws SQLException {
+        System.out.println("\n========== DELETE STUDENT ==========");
+        
+        System.out.print("Enter Student ID to delete: ");
+        int id = scanner.nextInt();
+        scanner.nextLine();
+        
+        Map<String, Object> student = dao.getStudent(id);
+        
+        if (student == null) {
+            System.out.println("❌ Student not found!");
+            return;
+        }
+        
+        System.out.println("\nStudent to delete:");
+        System.out.println("Name: " + student.get("name"));
+        System.out.println("Email: " + student.get("email"));
+        
+        System.out.print("\nAre you sure you want to delete this student? (yes/no): ");
+        String confirmation = scanner.nextLine().toLowerCase();
+        
+        if (confirmation.equals("yes")) {
+            boolean success = dao.deleteStudent(id);
+            if (success) {
+                System.out.println("✅ Student deleted successfully!");
+            } else {
+                System.out.println("❌ Failed to delete student.");
+            }
+        } else {
+            System.out.println("Deletion cancelled.");
+        }
+    }
+    
+    /**
+     * VIEW: Statistics
+     */
+    private static void viewStatistics() throws SQLException {
+        System.out.println("\n========== STATISTICS ==========");
+        dao.printDatabaseStats();
+    }
+}

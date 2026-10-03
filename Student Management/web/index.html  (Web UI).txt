@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Management System</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="container">
+    <!-- Header -->
+    <div class="header">
+        <h1>📚 Student Management System</h1>
+        <p>JDBC Project with Complete CRUD Operations</p>
+    </div>
+
+    <!-- Statistics -->
+    <div class="stats-container">
+        <div class="stat-box total-students">
+            <h3>Total Students</h3>
+            <p id="totalStudents">0</p>
+        </div>
+        <div class="stat-box average-gpa">
+            <h3>Average GPA</h3>
+            <p id="averageGPA">0.00</p>
+        </div>
+        <div class="stat-box high-gpa">
+            <h3>Highest GPA</h3>
+            <p id="highestGPA">0.00</p>
+        </div>
+    </div>
+
+    <!-- Form Section -->
+    <div class="form-section">
+        <h2>Student Operations</h2>
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('add-form')">Add Student</button>
+            <button class="tab-btn" onclick="switchTab('search-form')">Search Student</button>
+            <button class="tab-btn" onclick="switchTab('update-form')">Update Student</button>
+        </div>
+
+        <!-- Add Student Form -->
+        <form id="addForm" class="tab-content active" style="display: block;">
+            <h3>Add New Student</h3>
+            <input type="text" id="addName" placeholder="Full Name" required>
+            <input type="email" id="addEmail" placeholder="Email Address" required>
+            <input type="tel" id="addPhone" placeholder="Phone Number" required>
+            <input type="text" id="addAddress" placeholder="Address" required>
+            <input type="date" id="addEnrollmentDate" required>
+            <input type="number" id="addGPA" placeholder="GPA (0.0 - 4.0)" min="0" max="4" step="0.01" required>
+            <button type="submit">Add Student</button>
+            <p id="addMessage"></p>
+        </form>
+
+        <!-- Search Form -->
+        <form id="searchForm" class="tab-content" style="display: none;">
+            <h3>Search Student</h3>
+            <input type="text" id="searchKeyword" placeholder="Search by name or email" required>
+            <button type="submit">Search</button>
+            <p id="searchMessage"></p>
+            <div id="searchResults" style="margin-top: 15px;"></div>
+        </form>
+
+        <!-- Update Form -->
+        <form id="updateForm" class="tab-content" style="display: none;">
+            <h3>Update Student Information</h3>
+            <input type="number" id="updateId" placeholder="Student ID" required>
+            <button type="button" onclick="loadStudentForUpdate()">Load Student</button>
+            <input type="text" id="updateName" placeholder="Name" disabled style="margin-top: 10px;">
+            <input type="email" id="updateEmail" placeholder="Email" disabled>
+            <input type="tel" id="updatePhone" placeholder="Phone" disabled>
+            <input type="text" id="updateAddress" placeholder="Address" disabled>
+            <input type="number" id="updateGPA" placeholder="GPA" disabled>
+            <button type="submit" id="updateSubmitBtn" disabled>Update Student</button>
+            <p id="updateMessage"></p>
+        </form>
+    </div>
+
+    <!-- Table Section -->
+    <div class="table-section">
+        <h2>Student Records</h2>
+        <div class="table-controls">
+            <button class="btn-primary" onclick="loadAllStudents()">Refresh Data</button>
+            <button class="btn-danger" onclick="clearAllStudents()">Clear All (WARNING!)</button>
+        </div>
+
+        <table id="studentsTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Address</th>
+                    <th>Enrollment Date</th>
+                    <th>GPA</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="studentsBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<script src="/script.js"></script>
+</body>
+</html>

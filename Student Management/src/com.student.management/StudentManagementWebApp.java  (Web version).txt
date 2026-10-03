@@ -1,0 +1,90 @@
+package com.student.management;
+
+import com.sun.net.httpserver.HttpServer;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+
+/**
+ * Student Management System - Web Server
+ * Starts HTTP server for web-based student management application
+ * 
+ * Usage:
+ * 1. Run this main class
+ * 2. Open http://localhost:8080 in browser
+ * 3. Use web interface for CRUD operations
+ */
+public class StudentManagementWebApp {
+    
+    // Server configuration
+    private static final int PORT = 7070;
+    private static final String CONTEXT_PATH = "/";
+    
+    public static void main(String[] args) {
+        try {
+            // Create HTTP server
+            HttpServer server = HttpServer.create(
+                new InetSocketAddress(PORT), 
+                0
+            );
+            
+            // Create context handler
+            server.createContext(CONTEXT_PATH, new StudentHandler());
+            
+            // Set thread pool
+            server.setExecutor(java.util.concurrent.Executors.newFixedThreadPool(10));
+            
+            // Start server
+            server.start();
+            
+            // Display startup message
+            displayStartupMessage();
+            
+        } catch (IOException e) {
+            System.err.println("❌ Error starting server: " + e.getMessage());
+            e.printStackTrace();
+            System.exit(1);
+        }
+    }
+    
+    /**
+     * Display startup information
+     */
+    private static void displayStartupMessage() {
+        System.out.println("\n╔════════════════════════════════════════════════════╗");
+        System.out.println("║                                                    ║");
+        System.out.println("║    STUDENT MANAGEMENT SYSTEM - WEB SERVER         ║");
+        System.out.println("║                                                    ║");
+        System.out.println("╠════════════════════════════════════════════════════╣");
+        System.out.println("║ Status: ✅ SERVER STARTED                          ║");
+        System.out.println("║ Port: " + String.format("%-43s║", PORT));
+        System.out.println("║ URL: http://localhost:" + PORT);
+        System.out.println("║                                                    ║");
+        System.out.println("╠════════════════════════════════════════════════════╣");
+        System.out.println("║ FEATURES:                                          ║");
+        System.out.println("║ ✓ Add Students                                     ║");
+        System.out.println("║ ✓ View All Students                                ║");
+        System.out.println("║ ✓ Search Students                                  ║");
+        System.out.println("║ ✓ Update Student Information                       ║");
+        System.out.println("║ ✓ Delete Students                                  ║");
+        System.out.println("║ ✓ View Statistics                                  ║");
+        System.out.println("║                                                    ║");
+        System.out.println("╠════════════════════════════════════════════════════╣");
+        System.out.println("║ API ENDPOINTS:                                     ║");
+        System.out.println("║ POST   /addStudent           - Add new student     ║");
+        System.out.println("║ GET    /getAllStudents       - Get all students    ║");
+        System.out.println("║ GET    /getStudent?id=       - Get single student  ║");
+        System.out.println("║ GET    /searchStudents?k=    - Search students     ║");
+        System.out.println("║ POST   /updateStudent        - Update student      ║");
+        System.out.println("║ POST   /deleteStudent?id=    - Delete student      ║");
+        System.out.println("║ POST   /deleteAllStudents    - Delete all          ║");
+        System.out.println("║ GET    /getStatistics        - Get statistics      ║");
+        System.out.println("║                                                    ║");
+        System.out.println("╠════════════════════════════════════════════════════╣");
+        System.out.println("║ DATABASE: student_management                       ║");
+        System.out.println("║ Tables: students, courses                          ║");
+        System.out.println("║                                                    ║");
+        System.out.println("╚════════════════════════════════════════════════════╝\n");
+        System.out.println("🌐 Open browser: http://localhost:" + PORT);
+        System.out.println("⏹️  To stop: Press Ctrl+C\n");
+    }
+}
